@@ -12,7 +12,12 @@ def index():
 def handle_mcp():
     data = request.get_json()
     print("Received MCP message:", data)
+
+    # Respond to Agent Builder handshake
+    if data and data.get("type") == "ping":
+        return jsonify({"type": "pong"}), 200
+
     return jsonify({"status": "ok", "received": data}), 200
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="0.0.0.0", port=8080) 
