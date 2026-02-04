@@ -14,10 +14,14 @@ def handle_mcp():
     print("Received MCP message:", data)
 
     # Respond to Agent Builder handshake
-    if data and data.get("type") == "ping":
-        return jsonify({"type": "pong"}), 200
+    if data and data.get("method") == "initialize":
+        return jsonify({
+            "jsonrpc": "2.0",
+            "id": data.get("id"),
+            "result": {"capabilities": {}}
+        }), 200
 
     return jsonify({"status": "ok", "received": data}), 200
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080) 
+    app.run(host="0.0.0.0", port=8080)
