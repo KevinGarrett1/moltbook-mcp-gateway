@@ -4,88 +4,86 @@ app = Flask(__name__)
 
 @app.route("/", methods=["GET"])
 def index():
-    return "Moltbook MCP Gateway is running"
+    return "MCP server is running"
 
 
 @app.route("/mcp", methods=["POST"])
-def handle_mcp():
+def mcp():
     data = request.get_json(force=True)
-    print("Received MCP message:", data)
+    print("MCP request:", data)
+
+    method = data.get("method")
+    req_id = data.get("id")
 
     # -----------------------------
-    # MCP INITIALIZE (HANDSHAKE)
+    # REQUIRED: list_tools
     # -----------------------------
-    if data.get("method") == "initialize":
+    if method == "list_tools":
         return jsonify({
             "jsonrpc": "2.0",
-            "id": data.get("id"),
+            "id": req_id,
             "result": {
-                "serverInfo": {
-                    "name": "moltbook-mcp-gateway",
-                    "version": "0.1.0"
-                },
-                "capabilities": {
-                    "tools": [
-                        {
-                            "name": "validate_threat",
-                            "description": "Validate an incident and return a structured threat assessment",
-                            "inputSchema": {
-                                "type": "object",
-                                "properties": {
-                                    "incident": {
-                                        "type": "object",
-                                        "description": "Incident payload from Moltbook"
-                                    }
-                                },
-                                "required": ["incident"]
-                            }
+                "tools": [
+                    {
+                        "name": "validate_threat",
+                        "description": "Validate an incident and return a threat assessment",
+                        "input_schema": {
+                            "type": "object",
+                            "properties": {
+                                "incident": {
+                                    "type": "object",
+                                    "description": "Incident payload"
+                                }
+                            },
+                            "required": ["incident"]
                         }
-                    ]
-                }
+                    }
+                ]
             }
-        }), 200
+        })
 
     # -----------------------------
-    # MCP TOOL INVOCATION
+    # REQUIRED: call_tool
     # -----------------------------
-    if data.get("method") == "tools/call":
-        tool_name = data["params"]["name"]
-        arguments = data["params"].get("arguments", {})
+    if method == "call_tool":
+        params = data.get("params", {})
+        tool_name = params.get("name")
+        arguments = params.get("arguments", {})
 
-        if tool_name == "validate_threat":
-            result = {
-                "verdict": "unknown",
-                "confidence": 0.0,
-                "requires_human": True,
-                "status": "acknowledged"
-            }
-
+        if tool_name != "validate_threat":
             return jsonify({
                 "jsonrpc": "2.0",
-                "id": data.get("id"),
-                "result": result
-            }), 200
+                "id": req_id,
+                "error": {
+                    "code": -32601,
+                    "message": f"Unknown tool: {tool_name}"
+                }
+            })
 
+        incident = arguments.get("incident", {})
+
+        # Deterministic placeholder response
         return jsonify({
             "jsonrpc": "2.0",
-            "id": data.get("id"),
-            "error": {
-                "code": -32601,
-                "message": f"Tool not found: {tool_name}"
+            "id": req_id,
+            "result": {
+                "verdict": "unknown",
+                "confidence": 0.0,
+                "requires_human": True
             }
-        }), 404
+        })
 
     # -----------------------------
-    # FALLBACK
+    # Fallback
     # -----------------------------
     return jsonify({
         "jsonrpc": "2.0",
-        "id": data.get("id"),
+        "id": req_id,
         "error": {
             "code": -32600,
-            "message": "Invalid MCP request"
+            "message": "Invalid request"
         }
-    }), 400
+    })
 
 
 if __name__ == "__main__":
